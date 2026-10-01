@@ -1,3 +1,22 @@
+import os
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+# Dummy HTTP server for Render Web Service health checks
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"MindDump AI is running!")
+
+def run_dummy_server():
+    port = int(os.getenv("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
+    server.serve_forever()
+
+# Start the dummy web server thread before starting your Telegram bot polling
+threading.Thread(target=run_dummy_server, daemon=True).start()
+
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from config import TELEGRAM_BOT_TOKEN
 from bot.handlers import start_handler, message_handler, tasks_command_handler, button_callback_handler, help_handler
