@@ -6,6 +6,17 @@ from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 from config import GEMINI_API_KEY
+from datetime import datetime
+import zoneinfo
+
+# Force Asia/Kolkata timezone
+ist_tz = zoneinfo.ZoneInfo("Asia/Kolkata")
+current_now = datetime.now(ist_tz).strftime("%Y-%m-%d %H:%M:%S")
+
+prompt = f"""
+Current Date & Time: {current_now} (IST)
+Extract tasks from the user input and convert all target execution times into exact ISO 8601 strings (YYYY-MM-DDTHH:MM:SS)...
+"""
 
 # Expanded verbs list to catch more natural task phrasings
 TASK_VERBS = [
