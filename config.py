@@ -1,10 +1,15 @@
 import os
+from dotenv import load_dotenv
 
-# Telegram Bot Token (Obtained from @BotFather on Telegram)
+load_dotenv()
+
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-
-# Gemini API Key (Obtained from Google AI Studio)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Database Configuration
+if not TELEGRAM_BOT_TOKEN:
+    raise ValueError("TELEGRAM_BOT_TOKEN environment variable is not set!")
+
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY environment variable is not set!")
+
 DATABASE_PATH = "minddump.db"
