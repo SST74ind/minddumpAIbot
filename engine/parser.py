@@ -2,21 +2,14 @@ import json
 import re
 import logging
 from datetime import datetime, timedelta
+import zoneinfo
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 from config import GEMINI_API_KEY
-from datetime import datetime
-import zoneinfo
 
-# Force Asia/Kolkata timezone
-ist_tz = zoneinfo.ZoneInfo("Asia/Kolkata")
-current_now = datetime.now(ist_tz).strftime("%Y-%m-%d %H:%M:%S")
-
-prompt = f"""
-Current Date & Time: {current_now} (IST)
-Extract tasks from the user input and convert all target execution times into exact ISO 8601 strings (YYYY-MM-DDTHH:MM:SS)...
-"""
+# Define Indian Standard Time (IST) timezone
+IST_TZ = zoneinfo.ZoneInfo("Asia/Kolkata")
 
 # Expanded verbs list to catch more natural task phrasings
 TASK_VERBS = [
@@ -70,7 +63,7 @@ def parse_single_segment(segment: str, now: datetime) -> dict:
             if "tomorrow" in segment.lower():
                 target_date += timedelta(days=1)
                 
-            remind_time = datetime.combine(target_date, datetime.min.time()).replace(hour=hr, minute=mn)
+            remind_time = datetime.combine(target_date, datetime.min.time()).replace(hour=hr, minute=mn, tzinfo=IST_TZ)
             
             # If calculated time for today already passed, push to tomorrow automatically
             if remind_time <= now and "today" not in segment.lower():
@@ -106,22 +99,23 @@ def parse_local_fallback(raw_text: str) -> dict:
     if not (has_verb or has_time):
         return {"tasks": []}
 
-    now = datetime.now()
+    now = datetime.now(IST_TZ)
     segments = re.split(r"\s+(?:and|then|also)\s+|,\s*", raw_text, flags=re.IGNORECASE)
     tasks = [parse_single_segment(seg, now) for seg in segments if seg.strip()]
 
     return {"tasks": tasks}
 
 def parse_brain_dump(raw_text: str) -> dict:
-    now = datetime.now()
+    # Use explicit IST current time
+    now = datetime.now(IST_TZ)
     now_str = now.strftime("%A, %Y-%m-%d %H:%M:%S")
 
     prompt = f"""
-    Current Reference Time: {now_str}
+    Current Reference Time: {now_str} (IST - Asia/Kolkata)
     Input Text: "{raw_text}"
 
     If the text is casual conversation, return {{"tasks": []}}.
-    Otherwise extract all actionable tasks and compute future ISO timestamps (YYYY-MM-DDTHH:MM:SS) for remind_at_iso.
+    Otherwise extract all actionable tasks and compute future ISO timestamps (YYYY-MM-DDTHH:MM:SS) for remind_at_iso based strictly on the reference time above.
     If a requested clock time today has already passed, set the timestamp for that time tomorrow.
     """
 
@@ -145,7 +139,11 @@ def parse_brain_dump(raw_text: str) -> dict:
         # Post-process past or tight timestamps to prevent silent failures
         for t in parsed["tasks"]:
             try:
+                # Parse output ISO string and enforce IST comparison
                 dt = datetime.fromisoformat(t["remind_at_iso"])
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=IST_TZ)
+
                 if dt <= now:
                     # Provide a 10-second buffer if target time passed due to execution latency
                     t["remind_at_iso"] = (now + timedelta(seconds=10)).strftime("%Y-%m-%dT%H:%M:%S")
@@ -155,5 +153,5 @@ def parse_brain_dump(raw_text: str) -> dict:
         return parsed
 
     except Exception as e:
-        print(f"Fallback active: {e}")
+        logging.error(f"Fallback active due to Gemini API issue: {e}")
         return parse_local_fallback(raw_text)

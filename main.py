@@ -1,6 +1,19 @@
 import os
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
+import zoneinfo
+from telegram.ext import ApplicationBuilder
+
+# Define IST timezone
+IST = zoneinfo.ZoneInfo("Asia/Kolkata")
+
+# When initializing Application
+app = (
+    ApplicationBuilder()
+    .token(TELEGRAM_BOT_TOKEN)
+    .timezone(IST)  # <--- Ensure timezone is set here for JobQueue
+    .build()
+)
 
 # Dummy HTTP server for Render Web Service health checks
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
