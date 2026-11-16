@@ -1,5 +1,5 @@
-python-telegram-bot>=20.0
-google-genai
-pydantic
+python-telegram-bot[job-queue]>=21.0
+google-genai>=1.0
+pydantic>=2.0
 python-dotenv
 tzdata
